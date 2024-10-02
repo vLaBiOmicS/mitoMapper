@@ -254,8 +254,15 @@
                 .domain([0, d3.max(annotations, d => d.end)])
                 .range([0, 2 * Math.PI]);
 
-            const arc = d3.arc()
-                .innerRadius(radius - 50)
+            // Set arc paths for genes on + strand (outside) and - strand (inside)
+            const outerArc = d3.arc()
+                .innerRadius(radius)
+                .outerRadius(radius + 30)
+                .startAngle(d => angleScale(d.start))
+                .endAngle(d => angleScale(d.end));
+
+            const innerArc = d3.arc()
+                .innerRadius(radius - 30)
                 .outerRadius(radius)
                 .startAngle(d => angleScale(d.start))
                 .endAngle(d => angleScale(d.end));
@@ -264,11 +271,22 @@
                 .domain(["D-loop", "PCG", "tRNA", "rRNA"])
                 .range(["yellow", "blue", "green", "red"]);
 
-            svg.selectAll("path")
-                .data(annotations)
+            svg.selectAll("path.outer")
+                .data(annotations.filter(d => d.strand === "+"))
                 .enter()
                 .append("path")
-                .attr("d", arc)
+                .attr("class", "outer")
+                .attr("d", outerArc)
+                .attr("fill", d => colorScale(d.category))
+                .attr("stroke", "black")
+                .attr("stroke-width", 1);
+
+            svg.selectAll("path.inner")
+                .data(annotations.filter(d => d.strand === "-"))
+                .enter()
+                .append("path")
+                .attr("class", "inner")
+                .attr("d", innerArc)
                 .attr("fill", d => colorScale(d.category))
                 .attr("stroke", "black")
                 .attr("stroke-width", 1);
@@ -280,8 +298,8 @@
                 .append("text")
                 .attr("transform", function(d) {
                     const angle = (angleScale(d.start) + angleScale(d.end)) / 2;
-                    const x = (radius - 60) * Math.cos(angle - Math.PI / 2);
-                    const y = (radius - 60) * Math.sin(angle - Math.PI / 2);
+                    const x = (radius + (d.strand === "+" ? 40 : -40)) * Math.cos(angle - Math.PI / 2);
+                    const y = (radius + (d.strand === "+" ? 40 : -40)) * Math.sin(angle - Math.PI / 2);
                     return `translate(${x}, ${y}) rotate(${angle * 180 / Math.PI})`;
                 })
                 .attr("text-anchor", "middle")
@@ -403,27 +421,28 @@
                     const parts = line.split('\t');
                     const [contig, source, type, start, end, score, strand, phase, attributes] = parts;
 
-                    let category = '';
-                    if (type === "gene") {
+                    if (type === "gene") {  // Filter only genes, no exons or other features
+                        let category = '';
                         if (attributes.includes("protein")) {
                             category = "PCG";
                         } else if (attributes.includes("rRNA")) {
                             category = "rRNA";
                         } else if (attributes.includes("tRNA")) {
                             category = "tRNA";
+                        } else if (attributes.includes("D-loop") || attributes.includes("control region")) {
+                            category = "D-loop";
                         }
-                    } else if (attributes.includes("D-loop") || attributes.includes("control region")) {
-                        category = "D-loop";
-                    }
 
-                    annotations.push({
-                        id: annotations.length + 1,
-                        type,
-                        start: parseInt(start),
-                        end: parseInt(end),
-                        category: category,
-                        attributes: attributes
-                    });
+                        annotations.push({
+                            id: annotations.length + 1,
+                            type,
+                            start: parseInt(start),
+                            end: parseInt(end),
+                            category: category,
+                            strand: strand,  // Capture the strand information
+                            attributes: attributes
+                        });
+                    }
                 }
             });
 
