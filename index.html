@@ -177,6 +177,7 @@
         <table id="regions-table">
             <thead>
                 <tr>
+                    <th>Gene Name</th>
                     <th>Type</th>
                     <th>Start</th>
                     <th>End</th>
@@ -271,6 +272,22 @@
                 .attr("fill", d => colorScale(d.category))
                 .attr("stroke", "black")
                 .attr("stroke-width", 1);
+
+            // Add labels for gene names
+            svg.selectAll("text")
+                .data(annotations)
+                .enter()
+                .append("text")
+                .attr("transform", function(d) {
+                    const angle = (angleScale(d.start) + angleScale(d.end)) / 2;
+                    const x = (radius - 60) * Math.cos(angle - Math.PI / 2);
+                    const y = (radius - 60) * Math.sin(angle - Math.PI / 2);
+                    return `translate(${x}, ${y}) rotate(${angle * 180 / Math.PI})`;
+                })
+                .attr("text-anchor", "middle")
+                .text(d => d.attributes.match(/gene_id=([^;]+)/)?.[1] || "Unknown")
+                .attr("font-size", "10px")
+                .attr("fill", "black");
         }
 
         // Add annotations to the table
@@ -282,6 +299,7 @@
                 const row = document.createElement("tr");
 
                 row.innerHTML = `
+                    <td>${annotation.attributes.match(/gene_id=([^;]+)/)?.[1] || "Unknown"}</td>
                     <td>${annotation.type}</td>
                     <td><input type="number" value="${annotation.start}" onchange="updateAnnotation(${annotation.id}, 'start', this.value)" title="Start position of the annotation"></td>
                     <td><input type="number" value="${annotation.end}" onchange="updateAnnotation(${annotation.id}, 'end', this.value)" title="End position of the annotation"></td>
